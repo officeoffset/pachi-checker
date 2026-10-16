@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>パチ・スロ確率チェッカー</title>
+    <!-- 安定したバージョンのAIライブラリを読み込み -->
     <script src="https://jsdelivr.net"></script>
     <style>
         body { font-family: sans-serif; text-align: center; margin: 0; padding: 20px; background: #f0f2f5; }
@@ -47,23 +48,41 @@
             .catch(e => { statusText.innerText = "カメラ起動失敗"; });
         });
 
-        scanBtn.addEventListener('click', async () => {
+        scanBtn.addEventListener('click', () => {
             statusText.innerText = "画像を解析中...";
             scanBtn.disabled = true;
+
             const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            try {
-                const result = await Tesseract.recognize(canvas, 'eng', {
-                    logger: m => { if(m.status === 'recognizing text') statusText.innerText = `解析中... ${Math.round(m.progress * 100)}%`; },
-                    tessedit_char_whitelist: '0123456789'
-                });
-                const num = result.data.text.trim();
-                if (num) { ocrText.innerText = num; statusText.innerText = "認識成功！"; }
-                else { ocrText.innerText = "数字なし"; statusText.innerText = "もう一度試してね"; }
-            } catch (error) { statusText.innerText = "エラー発生"; }
-            finally { scanBtn.disabled = false; }
+
+            // スマホ用に最もエラーが起きにくい古い形式の書き方に修正
+            Tesseract.recognize(
+                canvas,
+                'eng',
+                { 
+                    logger: m => { 
+                        if(m.status === 'recognizing text') {
+                            statusText.innerText = `解析中... ${Math.round(m.progress * 100)}%`;
+                        }
+                    }
+                }
+            ).then(result => {
+                // 数字以外を削る処理
+                const num = result.data.text.replace(/[^0-9]/g, '').trim();
+                if (num) {
+                    ocrText.innerText = num;
+                    statusText.innerText = "認識成功！";
+                } else {
+                    ocrText.innerText = "数字なし";
+                    statusText.innerText = "もう一度試してね";
+                }
+            }).catch(error => {
+                statusText.innerText = "解析エラー: " + error.message;
+            }).finally(() => {
+                scanBtn.disabled = false;
+            });
         });
     </script>
 </body>
