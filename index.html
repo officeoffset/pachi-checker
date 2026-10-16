@@ -4,69 +4,66 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>パチ・スロ確率チェッカー</title>
+    <script src="https://jsdelivr.net"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; margin: 0; padding: 20px; background: #f0f0f2; }
-        h1 { font-size: 18px; color: #333; }
-        #video { width: 100%; max-width: 400px; border-radius: 8px; background: #000; }
-        button { background: #ff4757; color: white; border: none; padding: 15px 30px; font-size: 16px; font-weight: bold; border-radius: 25px; margin: 15px 0; width: 100%; max-width: 400px; cursor: pointer; }
-        #result-box { background: white; padding: 15px; border-radius: 8px; text-align: left; max-width: 370px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .machine-name { font-size: 18px; font-weight: bold; color: #1e90ff; }
-        .probability { font-size: 14px; color: #333; white-space: pre-wrap; margin-top: 5px; }
+        body { font-family: sans-serif; text-align: center; margin: 0; padding: 20px; background: #f0f2f5; }
+        h1 { font-size: 1.5rem; color: #333; }
+        #video-container { position: relative; width: 100%; max-width: 400px; margin: 0 auto; background: #000; border-radius: 10px; overflow: hidden; }
+        video { width: 100%; display: block; }
+        #guide-box { position: absolute; top: 35%; left: 10%; width: 80%; height: 30%; border: 3px solid #00ff00; box-sizing: border-box; pointer-events: none; }
+        #guide-text { position: absolute; top: 10px; width: 100%; text-align: center; color: #00ff00; font-size: 0.8rem; font-weight: bold; text-shadow: 1px 1px 2px #000; }
+        button { background: #007bff; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; border-radius: 5px; margin: 20px 0; width: 100%; max-width: 400px; cursor: pointer; }
+        button:active { background: #0056b3; }
+        #result-box { background: white; padding: 15px; border-radius: 10px; max-width: 400px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: left; }
+        .status { font-weight: bold; color: #666; text-align: center; }
+        canvas { display: none; }
     </style>
 </head>
 <body>
-
-    <h1>🎰 パチ・スロ確率チェッカー</h1>
-    
-    <!-- スマホカメラの映像を映す場所 -->
-    <video id="video" autoplay playsinline></video>
-    
-    <!-- シャッターボタン -->
-    <button id="snap-btn">📷 この台をスキャンする</button>
-
-    <!-- 結果を表示する場所 -->
-    <div id="result-box">
-        <h3>▼ 判定結果</h3>
-        <div id="machine" class="machine-name">スキャン待ち...</div>
-        <div id="prob" class="probability">台の文字が映るようにしてボタンを押してください。</div>
+    <h1>パチ・スロ確率チェッカー</h1>
+    <div id="video-container">
+        <video id="video" autoplay playsinline muted></video>
+        <div id="guide-box"><div id="guide-text">ここに数字を合わせてね</div></div>
     </div>
-
+    <button id="scan-btn">現在の画面をAI認識する</button>
+    <div id="result-box">
+        <p id="status-text" class="status">カメラを起動中...</p>
+        <h3>【AI認識された数字】</h3>
+        <p id="ocr-text" style="font-size: 1.2rem; font-weight: bold; color: #ff5722; background: #fff3e0; padding: 10px; border-radius: 5px; min-height: 30px;">（ここに結果が出ます）</p>
+    </div>
+    <canvas id="canvas"></canvas>
     <script>
         const video = document.getElementById('video');
-        const snapBtn = document.getElementById('snap-btn');
-        const machineText = document.getElementById('machine');
-        const probText = document.getElementById('prob');
+        const canvas = document.getElementById('canvas');
+        const scanBtn = document.getElementById('scan-btn');
+        const statusText = document.getElementById('status-text');
+        const ocrText = document.getElementById('ocr-text');
 
-        // 1. スマホの背面カメラを起動する
-        navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { exact: "environment" } }, // 背面カメラを指定
-            audio: false
-        })
-        .then(stream => { video.srcObject = stream; })
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } }, audio: false })
+        .then(stream => { video.srcObject = stream; statusText.innerText = "カメラ準備完了！"; })
         .catch(err => {
-            // PCや一部のブラウザでエラーが出た場合は通常のカメラを起動
             navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-            .then(stream => { video.srcObject = stream; });
+            .then(stream => { video.srcObject = stream; statusText.innerText = "代替カメラ起動"; })
+            .catch(e => { statusText.innerText = "カメラ起動失敗"; });
         });
 
-        // 2. ボタンを押した時の処理（本来はここでGoogle API等に画像を送る）
-        snapBtn.addEventListener('click', () => {
-            machineText.innerText = "スキャン中...";
-            probText.innerText = "データを解析しています...";
-
-            // テスト用に2秒後に「ジャグラー」を検知したと仮定するダミー処理
-            setTimeout(() => {
-                // 本来は画像から抽出した文字を判定します
-                const detectedText = "ジャグラー"; 
-
-                if(detectedText.includes("ジャグラー")) {
-                    machineText.innerText = "アイムジャグラーEX";
-                    probText.innerText = "【ボーナス合算確率】\n設定1: 1/168.5\n設定2: 1/165.1\n設定3: 1/159.8\n設定4: 1/149.3\n設定5: 1/141.2\n設定6: 1/127.5";
-                } else {
-                    machineText.innerText = "判定失敗";
-                    probText.innerText = "台の文字がうまく読み取れませんでした。";
-                }
-            }, 1500);
+        scanBtn.addEventListener('click', async () => {
+            statusText.innerText = "画像を解析中...";
+            scanBtn.disabled = true;
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            try {
+                const result = await Tesseract.recognize(canvas, 'eng', {
+                    logger: m => { if(m.status === 'recognizing text') statusText.innerText = `解析中... ${Math.round(m.progress * 100)}%`; },
+                    tessedit_char_whitelist: '0123456789'
+                });
+                const num = result.data.text.trim();
+                if (num) { ocrText.innerText = num; statusText.innerText = "認識成功！"; }
+                else { ocrText.innerText = "数字なし"; statusText.innerText = "もう一度試してね"; }
+            } catch (error) { statusText.innerText = "エラー発生"; }
+            finally { scanBtn.disabled = false; }
         });
     </script>
 </body>
