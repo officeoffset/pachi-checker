@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>パチ・スロ確率チェッカー</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin: 0; padding: 20px; background: #f0f0f2; }
+        h1 { font-size: 18px; color: #333; }
+        #video { width: 100%; max-width: 400px; border-radius: 8px; background: #000; }
+        button { background: #ff4757; color: white; border: none; padding: 15px 30px; font-size: 16px; font-weight: bold; border-radius: 25px; margin: 15px 0; width: 100%; max-width: 400px; cursor: pointer; }
+        #result-box { background: white; padding: 15px; border-radius: 8px; text-align: left; max-width: 370px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .machine-name { font-size: 18px; font-weight: bold; color: #1e90ff; }
+        .probability { font-size: 14px; color: #333; white-space: pre-wrap; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <h1>🎰 パチ・スロ確率チェッカー</h1>
+    
+    <!-- スマホカメラの映像を映す場所 -->
+    <video id="video" autoplay playsinline></video>
+    
+    <!-- シャッターボタン -->
+    <button id="snap-btn">📷 この台をスキャンする</button>
+
+    <!-- 結果を表示する場所 -->
+    <div id="result-box">
+        <h3>▼ 判定結果</h3>
+        <div id="machine" class="machine-name">スキャン待ち...</div>
+        <div id="prob" class="probability">台の文字が映るようにしてボタンを押してください。</div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const snapBtn = document.getElementById('snap-btn');
+        const machineText = document.getElementById('machine');
+        const probText = document.getElementById('prob');
+
+        // 1. スマホの背面カメラを起動する
+        navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { exact: "environment" } }, // 背面カメラを指定
+            audio: false
+        })
+        .then(stream => { video.srcObject = stream; })
+        .catch(err => {
+            // PCや一部のブラウザでエラーが出た場合は通常のカメラを起動
+            navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+            .then(stream => { video.srcObject = stream; });
+        });
+
+        // 2. ボタンを押した時の処理（本来はここでGoogle API等に画像を送る）
+        snapBtn.addEventListener('click', () => {
+            machineText.innerText = "スキャン中...";
+            probText.innerText = "データを解析しています...";
+
+            // テスト用に2秒後に「ジャグラー」を検知したと仮定するダミー処理
+            setTimeout(() => {
+                // 本来は画像から抽出した文字を判定します
+                const detectedText = "ジャグラー"; 
+
+                if(detectedText.includes("ジャグラー")) {
+                    machineText.innerText = "アイムジャグラーEX";
+                    probText.innerText = "【ボーナス合算確率】\n設定1: 1/168.5\n設定2: 1/165.1\n設定3: 1/159.8\n設定4: 1/149.3\n設定5: 1/141.2\n設定6: 1/127.5";
+                } else {
+                    machineText.innerText = "判定失敗";
+                    probText.innerText = "台の文字がうまく読み取れませんでした。";
+                }
+            }, 1500);
+        });
+    </script>
+</body>
+</html>
