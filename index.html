@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>パチ・スロ確率チェッカー</title>
-    <!-- 安定したバージョンのAIライブラリを読み込み -->
+    <!-- 最も軽くて安定しているバージョンのAIを読み込み -->
     <script src="https://jsdelivr.net"></script>
     <style>
         body { font-family: sans-serif; text-align: center; margin: 0; padding: 20px; background: #f0f2f5; }
@@ -48,8 +48,8 @@
             .catch(e => { statusText.innerText = "カメラ起動失敗"; });
         });
 
-        scanBtn.addEventListener('click', () => {
-            statusText.innerText = "画像を解析中...";
+        scanBtn.addEventListener('click', async () => {
+            statusText.innerText = "AIを起動中...";
             scanBtn.disabled = true;
 
             const ctx = canvas.getContext('2d');
@@ -57,20 +57,29 @@
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            // スマホ用に最もエラーが起きにくい古い形式の書き方に修正
-            Tesseract.recognize(
-                canvas,
-                'eng',
-                { 
-                    logger: m => { 
-                        if(m.status === 'recognizing text') {
+            try {
+                // 通信エラーを防ぐための設定を強化してAIを初期化
+                const worker = await Tesseract.createWorker({
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
                             statusText.innerText = `解析中... ${Math.round(m.progress * 100)}%`;
+                        } else {
+                            statusText.innerText = "データを読み込み中...";
                         }
                     }
-                }
-            ).then(result => {
-                // 数字以外を削る処理
+                });
+
+                // 数字（英語）モードで実行
+                await worker.loadLanguage('eng');
+                await worker.initialize('eng');
+                // 数字だけを狙い撃ち
+                await worker.setParameters({
+                    tessedit_char_whitelist: '0123456789'
+                });
+
+                const result = await worker.recognize(canvas);
                 const num = result.data.text.replace(/[^0-9]/g, '').trim();
+
                 if (num) {
                     ocrText.innerText = num;
                     statusText.innerText = "認識成功！";
@@ -78,11 +87,15 @@
                     ocrText.innerText = "数字なし";
                     statusText.innerText = "もう一度試してね";
                 }
-            }).catch(error => {
-                statusText.innerText = "解析エラー: " + error.message;
-            }).finally(() => {
+
+                // 使い終わったらAIを終了してスマホのメモリを開放
+                await worker.terminate();
+
+            } catch (error) {
+                statusText.innerText = "エラー: " + error.message;
+            } finally {
                 scanBtn.disabled = false;
-            });
+            }
         });
     </script>
 </body>
