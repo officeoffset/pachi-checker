@@ -1,11 +1,12 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>パチ・スロ確率チェッカー</title>
-    <!-- 最も軽くて安定しているバージョンのAIを読み込み -->
-    <script src="https://jsdelivr.net"></script>
+    <!-- 通信エラー対策：最も安定した配信元(cdnjs)から読み込み -->
+    <script src="https://cloudflare.com"></script>
     <style>
         body { font-family: sans-serif; text-align: center; margin: 0; padding: 20px; background: #f0f2f5; }
         h1 { font-size: 1.5rem; color: #333; }
@@ -39,7 +40,6 @@
         const scanBtn = document.getElementById('scan-btn');
         const statusText = document.getElementById('status-text');
         const ocrText = document.getElementById('ocr-text');
-
         navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } }, audio: false })
         .then(stream => { video.srcObject = stream; statusText.innerText = "カメラ準備完了！"; })
         .catch(err => {
@@ -47,39 +47,24 @@
             .then(stream => { video.srcObject = stream; statusText.innerText = "代替カメラ起動"; })
             .catch(e => { statusText.innerText = "カメラ起動失敗"; });
         });
-
         scanBtn.addEventListener('click', async () => {
             statusText.innerText = "AIを起動中...";
             scanBtn.disabled = true;
-
             const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
             try {
-                // 通信エラーを防ぐための設定を強化してAIを初期化
-                const worker = await Tesseract.createWorker({
-                    logger: m => {
-                        if (m.status === 'recognizing text') {
-                            statusText.innerText = `解析中... ${Math.round(m.progress * 100)}%`;
-                        } else {
-                            statusText.innerText = "データを読み込み中...";
-                        }
-                    }
-                });
-
-                // 数字（英語）モードで実行
+                // Tesseractの初期化設定（エラー回避版）
+                const worker = await Tesseract.createWorker();
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
-                // 数字だけを狙い撃ち
                 await worker.setParameters({
-                    tessedit_char_whitelist: '0123456789'
+                    tessedit_char_whitelist: '0123456789' // 数字だけを読み取る
                 });
-
+                statusText.innerText = "画像を解析中...";
                 const result = await worker.recognize(canvas);
                 const num = result.data.text.replace(/[^0-9]/g, '').trim();
-
                 if (num) {
                     ocrText.innerText = num;
                     statusText.innerText = "認識成功！";
@@ -87,10 +72,7 @@
                     ocrText.innerText = "数字なし";
                     statusText.innerText = "もう一度試してね";
                 }
-
-                // 使い終わったらAIを終了してスマホのメモリを開放
                 await worker.terminate();
-
             } catch (error) {
                 statusText.innerText = "エラー: " + error.message;
             } finally {
